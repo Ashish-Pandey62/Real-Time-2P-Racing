@@ -25,8 +25,8 @@ const cars = [
   {
     x: trackPoints[0].x,
     y: trackPoints[0].y,
-    width: 40,
-    height: 20,
+    width: 55,
+    height: 25,
     angle: 0,
     speed: 0,
     maxSpeed: 5,
@@ -38,8 +38,8 @@ const cars = [
   {
     x: trackPoints[1].x,
     y: trackPoints[1].y,
-    width: 40,
-    height: 20,
+    width: 55,
+    height: 25,
     angle: 0,
     speed: 0,
     maxSpeed: 5,
@@ -59,6 +59,25 @@ const controls = {
     ArrowRight: false,
   },
   player2: { w: false, s: false, a: false, d: false },
+};
+
+// Load car images
+const carImages = {
+  player1: new Image(),
+  player2: new Image(),
+};
+
+// Load images
+carImages.player1.src = "car1.png";
+carImages.player2.src = "car2.png";
+
+// Wait for images to load before starting the game
+let imagesLoaded = 0;
+carImages.player1.onload = carImages.player2.onload = () => {
+  imagesLoaded++;
+  if (imagesLoaded === 2) {
+    gameLoop();
+  }
 };
 
 // Handle keyboard input
@@ -150,7 +169,21 @@ function constrainCarToTrack(car) {
   }
 }
 
-// Collision handling function
+// Draw cars using images
+function drawCar(car, carImage) {
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle);
+  ctx.drawImage(
+    carImage,
+    -car.width / 2,
+    -car.height / 2,
+    car.width,
+    car.height
+  );
+  ctx.restore();
+}
+
 function handleCollision(car1, car2) {
   // Determine relative movement: car1 vs. car2
   const car1Momentum = Math.abs(car1.speed);
@@ -169,8 +202,6 @@ function handleCollision(car1, car2) {
   }
 }
 
-// Check for collision between two cars
-// Check for collision between two cars
 function checkCollision(car1, car2) {
   if (
     car1.x < car2.x + car2.width &&
@@ -184,19 +215,9 @@ function checkCollision(car1, car2) {
   return false;
 }
 
-// Draw cars
-function drawCar(car) {
-  ctx.save();
-  ctx.translate(car.x, car.y);
-  ctx.rotate(car.angle);
-  ctx.fillStyle = car.color;
-  ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
-  ctx.restore();
-}
-
 // Draw finishing line
 function drawFinishLine() {
-  const finishLineX = centerX + 350; // X coordinate for the finishing line
+  const finishLineX = centerX + 350;
   ctx.fillStyle = "orange";
   ctx.fillRect(finishLineX - 50, centerY, 100, 10);
 }
@@ -213,13 +234,10 @@ function gameLoop() {
 
   constrainCarToTrack(cars[0]);
   constrainCarToTrack(cars[1]);
-
   checkCollision(cars[0], cars[1]);
 
-  drawCar(cars[0]);
-  drawCar(cars[1]);
+  drawCar(cars[0], carImages.player1);
+  drawCar(cars[1], carImages.player2);
 
   requestAnimationFrame(gameLoop);
 }
-
-gameLoop();
