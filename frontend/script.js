@@ -7,50 +7,72 @@ canvas.height = 800;
 const centerX = canvas.width / 2;
 const centerY = canvas.height / 2;
 
-// More complex, realistic track points
+// Track Points
 const trackPoints = [
-  { x: centerX - 200, y: centerY - 300 }, // Top left
-  { x: centerX + 250, y: centerY - 250 }, // Top right with curve
-  { x: centerX + 350, y: centerY }, // Right long stretch
-  { x: centerX + 200, y: centerY + 250 }, // Bottom right curve
-  { x: centerX - 150, y: centerY + 300 }, // Bottom left
-  { x: centerX - 350, y: centerY + 100 }, // Left long stretch
+  { x: centerX - 200, y: centerY - 300 },
+  { x: centerX + 250, y: centerY - 250 },
+  { x: centerX + 350, y: centerY },
+  { x: centerX + 200, y: centerY + 250 },
+  { x: centerX - 150, y: centerY + 300 },
+  { x: centerX - 350, y: centerY + 100 },
 ];
 
-const trackWidth = 100;
 const outerTrackRadius = 400;
 const innerTrackRadius = 300;
 
-// Car properties
-const car = {
-  x: trackPoints[0].x,
-  y: trackPoints[0].y,
-  width: 40,
-  height: 20,
-  angle: 0,
-  speed: 0,
-  maxSpeed: 5,
-  acceleration: 0.1,
-  deceleration: 0.05,
-  turnSpeed: 0.05,
-};
+// Car properties for two players
+const cars = [
+  {
+    x: trackPoints[0].x,
+    y: trackPoints[0].y,
+    width: 40,
+    height: 20,
+    angle: 0,
+    speed: 0,
+    maxSpeed: 5,
+    acceleration: 0.1,
+    deceleration: 0.05,
+    turnSpeed: 0.05,
+    color: "#e74c3c",
+  },
+  {
+    x: trackPoints[1].x,
+    y: trackPoints[1].y,
+    width: 40,
+    height: 20,
+    angle: 0,
+    speed: 0,
+    maxSpeed: 5,
+    acceleration: 0.1,
+    deceleration: 0.05,
+    turnSpeed: 0.05,
+    color: "#3498db",
+  },
+];
 
-// Controls
+// Player controls
 const controls = {
-  ArrowUp: false,
-  ArrowDown: false,
-  ArrowLeft: false,
-  ArrowRight: false,
+  player1: {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false,
+  },
+  player2: { w: false, s: false, a: false, d: false },
 };
 
-// Event listeners
+// Handle keyboard input
 window.addEventListener("keydown", (e) => {
-  if (e.key in controls) controls[e.key] = true;
-});
-window.addEventListener("keyup", (e) => {
-  if (e.key in controls) controls[e.key] = false;
+  if (e.key in controls.player1) controls.player1[e.key] = true;
+  if (e.key in controls.player2) controls.player2[e.key] = true;
 });
 
+window.addEventListener("keyup", (e) => {
+  if (e.key in controls.player1) controls.player1[e.key] = false;
+  if (e.key in controls.player2) controls.player2[e.key] = false;
+});
+
+// Draw the racetrack
 function drawTrack() {
   // Outer track boundary
   ctx.beginPath();
@@ -87,44 +109,33 @@ function drawTrack() {
   ctx.setLineDash([]);
 }
 
-function drawCar() {
-  ctx.save();
-  ctx.translate(car.x, car.y);
-  ctx.rotate(car.angle);
-  ctx.fillStyle = "#e74c3c";
-  ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
-  ctx.restore();
-}
-
-function updateCarControls() {
-  if (controls.ArrowUp) {
+// Update car movement based on player controls
+function updateCarControls(car, carControls) {
+  if (carControls.ArrowUp || carControls.w) {
     car.speed = Math.min(car.speed + car.acceleration, car.maxSpeed);
   }
-  if (controls.ArrowDown) {
+  if (carControls.ArrowDown || carControls.s) {
     car.speed = Math.max(car.speed - car.deceleration, -car.maxSpeed / 2);
   }
-  if (controls.ArrowLeft) {
+  if (carControls.ArrowLeft || carControls.a) {
     car.angle -= car.turnSpeed * (car.speed !== 0 ? 1 : 0);
   }
-  if (controls.ArrowRight) {
+  if (carControls.ArrowRight || carControls.d) {
     car.angle += car.turnSpeed * (car.speed !== 0 ? 1 : 0);
   }
 
-  // Update position
   car.x += Math.cos(car.angle) * car.speed;
   car.y += Math.sin(car.angle) * car.speed;
-
-  // Gradual speed reduction
-  car.speed *= 0.98;
+  car.speed *= 0.98; // Gradual deceleration
 }
 
-function constrainCarToTrack() {
+// Prevent cars from going out of the track
+function constrainCarToTrack(car) {
   const dx = car.x - centerX;
   const dy = car.y - centerY;
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   if (distance > outerTrackRadius - car.width / 2) {
-    // Outer boundary collision
     const correction = (outerTrackRadius - car.width / 2) / distance;
     car.x = centerX + dx * correction;
     car.y = centerY + dy * correction;
@@ -132,7 +143,6 @@ function constrainCarToTrack() {
   }
 
   if (distance < innerTrackRadius + car.width / 2) {
-    // Inner boundary collision
     const correction = (innerTrackRadius + car.width / 2) / distance;
     car.x = centerX + dx * correction;
     car.y = centerY + dy * correction;
@@ -140,22 +150,74 @@ function constrainCarToTrack() {
   }
 }
 
-const finishLineX = 300;
-const finishLineY = 10;
-const finishLineWidth = 20;
-const finishLineHeight = 100;
+// Collision handling function
+function handleCollision(car1, car2) {
+  // Determine relative movement: car1 vs. car2
+  const car1Momentum = Math.abs(car1.speed);
+  const car2Momentum = Math.abs(car2.speed);
 
+  if (car1Momentum > car2Momentum) {
+    // Car1 is likely the hitter
+    car1.speed *= 0.7; // Decrease car1's speed
+    car2.speed += 2; // Boost car2's speed
+    car2.speed = Math.min(car2.speed, car2.maxSpeed);
+  } else {
+    // Car2 is likely the hitter
+    car2.speed *= 0.7; // Decrease car2's speed
+    car1.speed += 2; // Boost car1's speed
+    car1.speed = Math.min(car1.speed, car1.maxSpeed);
+  }
+}
+
+// Check for collision between two cars
+// Check for collision between two cars
+function checkCollision(car1, car2) {
+  if (
+    car1.x < car2.x + car2.width &&
+    car1.x + car1.width > car2.x &&
+    car1.y < car2.y + car2.height &&
+    car1.y + car1.height > car2.y
+  ) {
+    handleCollision(car1, car2);
+    return true;
+  }
+  return false;
+}
+
+// Draw cars
+function drawCar(car) {
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle);
+  ctx.fillStyle = car.color;
+  ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
+  ctx.restore();
+}
+
+// Draw finishing line
+function drawFinishLine() {
+  const finishLineX = centerX + 300; // X coordinate for the finishing line
+  ctx.fillStyle = "orange";
+  ctx.fillRect(finishLineX, centerY - 50, 10, 100); // Vertical line
+}
+
+// Main game loop
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawTrack();
+  drawFinishLine();
 
-  ctx.fillStyle = "orange"; // Color of the finishing line
-  ctx.fillRect(finishLineX, finishLineY, finishLineWidth, finishLineHeight);
+  updateCarControls(cars[0], controls.player1);
+  updateCarControls(cars[1], controls.player2);
 
-  updateCarControls();
-  constrainCarToTrack();
-  drawCar();
+  constrainCarToTrack(cars[0]);
+  constrainCarToTrack(cars[1]);
+
+  checkCollision(cars[0], cars[1]);
+
+  drawCar(cars[0]);
+  drawCar(cars[1]);
 
   requestAnimationFrame(gameLoop);
 }
