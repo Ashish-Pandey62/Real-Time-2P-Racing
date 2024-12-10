@@ -12,6 +12,8 @@ class GameConsumer(AsyncWebsocketConsumer):
         )
 
         await self.accept()
+        print("WebSocket connection established.")
+
         
         
     async def disconnect(self, close_code):

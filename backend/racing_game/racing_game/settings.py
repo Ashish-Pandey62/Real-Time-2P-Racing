@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -58,7 +59,7 @@ TEMPLATES = [
 ]
 
 # WSGI_APPLICATION = "racing_game.wsgi.application"
-AWSGI_APPLICATION = "racing_game.wsgi.application"
+AWSGI_APPLICATION = "racing_game.asgi.application"
 
 
 # Database
@@ -123,3 +124,5 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+ALLOWED_HOSTS = ["*"] 
