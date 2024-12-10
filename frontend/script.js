@@ -196,9 +196,9 @@ function drawCar(car) {
 
 // Draw finishing line
 function drawFinishLine() {
-  const finishLineX = centerX + 300; // X coordinate for the finishing line
+  const finishLineX = centerX + 350; // X coordinate for the finishing line
   ctx.fillStyle = "orange";
-  ctx.fillRect(finishLineX, centerY - 50, 10, 100); // Vertical line
+  ctx.fillRect(finishLineX - 50, centerY, 100, 10);
 }
 
 // Main game loop
