@@ -18,15 +18,15 @@ const trackPoints = [
 ];
 
 const outerTrackRadius = 400;
-const innerTrackRadius = 300;
+const innerTrackRadius = 280;
 
 // Car properties for two players
 const cars = [
   {
     x: trackPoints[0].x,
     y: trackPoints[0].y,
-    width: 55,
-    height: 25,
+    width: 60,
+    height: 30,
     angle: 0,
     speed: 0,
     maxSpeed: 5,
@@ -38,8 +38,8 @@ const cars = [
   {
     x: trackPoints[1].x,
     y: trackPoints[1].y,
-    width: 55,
-    height: 25,
+    width: 60,
+    height: 30,
     angle: 0,
     speed: 0,
     maxSpeed: 5,
@@ -217,9 +217,9 @@ function checkCollision(car1, car2) {
 
 // Draw finishing line
 function drawFinishLine() {
-  const finishLineX = centerX + 350;
+  const finishLineX = centerX + 330;
   ctx.fillStyle = "orange";
-  ctx.fillRect(finishLineX - 50, centerY, 100, 10);
+  ctx.fillRect(finishLineX - 50, centerY, 120, 10);
 }
 
 // Main game loop
