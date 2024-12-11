@@ -1,92 +1,142 @@
 import json
+import random
+import math
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class GameConsumer(AsyncWebsocketConsumer):
+    # Class-level dictionary to track player states
+    players = {}
+
     async def connect(self):
-        self.room_name = "room1"
-        self.room_group_name = f"racing_game_{self.room_name}"
-        
-        
-        # Limit connections if needed
+        self.room_group_name = "racing_game_room"
+
+        # Limit to 2 players
         if len(self.channel_layer.groups.get(self.room_group_name, [])) >= 2:
             await self.close()
             return
-        
-        # Add the player to the room
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
 
+        # Assign a unique player ID
+        self.player_id = len(self.players) + 1
+
+        # Initial player state
+        initial_position = self.get_initial_position(self.player_id)
+        self.players[self.player_id] = {
+            'x': initial_position['x'],
+            'y': initial_position['y'],
+            'angle': 0,
+            'speed': 0,
+            'controls': {
+                'ArrowUp': False, 'ArrowDown': False, 
+                'ArrowLeft': False, 'ArrowRight': False,
+                'w': False, 's': False, 
+                'a': False, 'd': False
+            }
+        }
+
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        print(f"Player connected to room: {self.room_group_name}")
 
-        # Notify other players of new connection
+        # Notify all players about new connection
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 "type": "player_joined",
-                "player": self.channel_name,
+                "player_id": self.player_id
             }
         )
 
-    async def player_joined(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "player_joined",
-            "player": event["player"],
-        }))
-        
+    def get_initial_position(self, player_id):
+        # Define initial positions for players
+        center_x, center_y = 400, 400
+        track_points = [
+            {'x': center_x - 200, 'y': center_y - 300},
+            {'x': center_x + 250, 'y': center_y - 250}
+        ]
+        return track_points[player_id - 1]
+
     async def disconnect(self, close_code):
-        # Remove the player from the room
+        # Remove player from tracking
+        if hasattr(self, 'player_id'):
+            del self.players[self.player_id]
+
         await self.channel_layer.group_discard(
-            self.room_group_name,
+            self.room_group_name, 
             self.channel_name
         )
-        
-            # Notify other players of disconnection
+
+        # Notify other players
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 "type": "player_left",
-                "player": self.channel_name,
+                "player_id": self.player_id
             }
         )
-        
-    async def player_left(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "player_left",
-            "player": event["player"],
-        }))
-        
-    
-        
-        
 
-        
-
-        
     async def receive(self, text_data):
         try:
             data = json.loads(text_data)
-            
-            # Broadcast received data to all players
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    "type": "game_event",
-                    "data": data,
-                }
-            )
+
+            if data["type"] == "player_input" and hasattr(self, 'player_id'):
+                # Update player controls
+                self.players[self.player_id]['controls'] = data.get(f'player{self.player_id}', {})
+
+                # Simulate game state update
+                updated_players = self.update_game_state()
+
+                # Broadcast updated game state
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "game_event",
+                        "player1": updated_players.get(1, {}),
+                        "player2": updated_players.get(2, {})
+                    }
+                )
+
         except json.JSONDecodeError:
             print("Invalid JSON received")
-        
-    async def game_event(self, event):
-        await self.send(text_data=json.dumps(event["data"]))
-    
 
-    
+    def update_game_state(self):
+        # Basic physics simulation
+        for player_id, player in self.players.items():
+            controls = player['controls']
+            
+            # Update speed and angle based on controls
+            if controls['ArrowUp'] or controls['w']:
+                player['speed'] = min(player['speed'] + 0.1, 5)
+            if controls['ArrowDown'] or controls['s']:
+                player['speed'] = max(player['speed'] - 0.1, -2.5)
+            
+            if controls['ArrowLeft'] or controls['a']:
+                player['angle'] -= 0.05 * (1 if player['speed'] != 0 else 0)
+            if controls['ArrowRight'] or controls['d']:
+                player['angle'] += 0.05 * (1 if player['speed'] != 0 else 0)
+
+            # Move car
+            player['x'] += math.cos(player['angle']) * player['speed']
+            player['y'] += math.sin(player['angle']) * player['speed']
+            
+            # Gradual deceleration
+            player['speed'] *= 0.98
+
+        return self.players
+
+    async def game_event(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "game_event",
+            "player1": event["player1"],
+            "player2": event["player2"],
+        }))
+
+    async def player_joined(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "player_joined",
+            "player_id": event['player_id']
+        }))
+
     async def player_left(self, event):
         await self.send(text_data=json.dumps({
             "type": "player_left",
-            "player": event['player']
+            "player_id": event['player_id']
         }))
