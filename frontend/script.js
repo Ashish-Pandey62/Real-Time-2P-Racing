@@ -7,6 +7,19 @@ canvas.height = 800;
 const centerX = canvas.width / 2;
 const centerY = canvas.height / 2;
 
+// Load the background image
+const backgroundImage = new Image();
+backgroundImage.src = "car1.png";
+
+backgroundImage.onload = function () {
+  gameLoop(); // Start the game loop once the image has loaded
+};
+
+function drawBackground() {
+  // Draw the background image covering the whole canvas
+  ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+}
+
 // Track Points
 const trackPoints = [
   { x: centerX - 200, y: centerY - 300 },
@@ -20,37 +33,37 @@ const trackPoints = [
 const outerTrackRadius = 400;
 const innerTrackRadius = 280;
 
-// Car properties for two players
+const carImages = {
+  player1: new Image(),
+  player2: new Image(),
+};
+
+carImages.player1.src = "car1.png";
+carImages.player2.src = "car2.png";
+
 const cars = [
   {
-    x: trackPoints[0].x,
-    y: trackPoints[0].y,
+    x: centerX - 200,
+    y: centerY - 300,
     width: 60,
     height: 30,
     angle: 0,
     speed: 0,
     maxSpeed: 5,
-    acceleration: 0.1,
-    deceleration: 0.05,
-    turnSpeed: 0.05,
     color: "#e74c3c",
   },
   {
-    x: trackPoints[1].x,
-    y: trackPoints[1].y,
+    x: centerX + 250,
+    y: centerY - 250,
     width: 60,
     height: 30,
     angle: 0,
     speed: 0,
     maxSpeed: 5,
-    acceleration: 0.1,
-    deceleration: 0.05,
-    turnSpeed: 0.05,
     color: "#3498db",
   },
 ];
 
-// Player controls
 const controls = {
   player1: {
     ArrowUp: false,
@@ -58,40 +71,85 @@ const controls = {
     ArrowLeft: false,
     ArrowRight: false,
   },
-  player2: { w: false, s: false, a: false, d: false },
+  player2: {
+    w: false,
+    s: false,
+    a: false,
+    d: false,
+  },
 };
 
-// Load car images
-const carImages = {
-  player1: new Image(),
-  player2: new Image(),
+let localPlayerId = null;
+
+// WebSocket connection
+let socket = new WebSocket("ws://127.0.0.1:8000/ws/game/");
+
+socket.onopen = function () {
+  console.log("Connected to WebSocket server");
 };
 
-// Load images
-carImages.player1.src = "car1.png";
-carImages.player2.src = "car2.png";
+socket.onmessage = function (e) {
+  try {
+    const data = JSON.parse(e.data);
+    console.log("Received:", data);
 
-// Wait for images to load before starting the game
-let imagesLoaded = 0;
-carImages.player1.onload = carImages.player2.onload = () => {
-  imagesLoaded++;
-  if (imagesLoaded === 2) {
-    gameLoop();
+    if (data.type === "player_joined") {
+      localPlayerId = data.player_id;
+      console.log("You are player", localPlayerId);
+    } else if (data.type === "game_event") {
+      // Update cars based on server data
+      if (data.player1) {
+        cars[0].x = data.player1.x;
+        cars[0].y = data.player1.y;
+        cars[0].angle = data.player1.angle;
+        cars[0].speed = data.player1.speed;
+      }
+      if (data.player2) {
+        cars[1].x = data.player2.x;
+        cars[1].y = data.player2.y;
+        cars[1].angle = data.player2.angle;
+        cars[1].speed = data.player2.speed;
+      }
+    }
+  } catch (error) {
+    console.error("Error parsing message:", error);
   }
 };
 
-// Handle keyboard input
+socket.onclose = function (e) {
+  console.error("WebSocket closed unexpectedly");
+};
+
+// Input event listeners
 window.addEventListener("keydown", (e) => {
   if (e.key in controls.player1) controls.player1[e.key] = true;
   if (e.key in controls.player2) controls.player2[e.key] = true;
+
+  // Send input to server
+  socket.send(
+    JSON.stringify({
+      type: "player_input",
+      player1: controls.player1,
+      player2: controls.player2,
+    })
+  );
 });
 
 window.addEventListener("keyup", (e) => {
   if (e.key in controls.player1) controls.player1[e.key] = false;
   if (e.key in controls.player2) controls.player2[e.key] = false;
+
+  // Send input to server
+  socket.send(
+    JSON.stringify({
+      type: "player_input",
+      player1: controls.player1,
+      player2: controls.player2,
+    })
+  );
 });
 
-// Draw the racetrack
+// Game rendering and loop
 function drawTrack() {
   // Outer track boundary
   ctx.beginPath();
@@ -128,48 +186,6 @@ function drawTrack() {
   ctx.setLineDash([]);
 }
 
-// Update car movement based on player controls
-function updateCarControls(car, carControls) {
-  if (carControls.ArrowUp || carControls.w) {
-    car.speed = Math.min(car.speed + car.acceleration, car.maxSpeed);
-  }
-  if (carControls.ArrowDown || carControls.s) {
-    car.speed = Math.max(car.speed - car.deceleration, -car.maxSpeed / 2);
-  }
-  if (carControls.ArrowLeft || carControls.a) {
-    car.angle -= car.turnSpeed * (car.speed !== 0 ? 1 : 0);
-  }
-  if (carControls.ArrowRight || carControls.d) {
-    car.angle += car.turnSpeed * (car.speed !== 0 ? 1 : 0);
-  }
-
-  car.x += Math.cos(car.angle) * car.speed;
-  car.y += Math.sin(car.angle) * car.speed;
-  car.speed *= 0.98; // Gradual deceleration
-}
-
-// Prevent cars from going out of the track
-function constrainCarToTrack(car) {
-  const dx = car.x - centerX;
-  const dy = car.y - centerY;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  if (distance > outerTrackRadius - car.width / 2) {
-    const correction = (outerTrackRadius - car.width / 2) / distance;
-    car.x = centerX + dx * correction;
-    car.y = centerY + dy * correction;
-    car.speed *= 0.5;
-  }
-
-  if (distance < innerTrackRadius + car.width / 2) {
-    const correction = (innerTrackRadius + car.width / 2) / distance;
-    car.x = centerX + dx * correction;
-    car.y = centerY + dy * correction;
-    car.speed *= 0.5;
-  }
-}
-
-// Draw cars using images
 function drawCar(car, carImage) {
   ctx.save();
   ctx.translate(car.x, car.y);
@@ -184,135 +200,21 @@ function drawCar(car, carImage) {
   ctx.restore();
 }
 
-function handleCollision(car1, car2) {
-  // Determine relative movement: car1 vs. car2
-  const car1Momentum = Math.abs(car1.speed);
-  const car2Momentum = Math.abs(car2.speed);
-
-  if (car1Momentum > car2Momentum) {
-    // Car1 is likely the hitter
-    car1.speed *= 0.7; // Decrease car1's speed
-    car2.speed += 2; // Boost car2's speed
-    car2.speed = Math.min(car2.speed, car2.maxSpeed);
-  } else {
-    // Car2 is likely the hitter
-    car2.speed *= 0.7; // Decrease car2's speed
-    car1.speed += 2; // Boost car1's speed
-    car1.speed = Math.min(car1.speed, car1.maxSpeed);
-  }
-}
-
-function checkCollision(car1, car2) {
-  if (
-    car1.x < car2.x + car2.width &&
-    car1.x + car1.width > car2.x &&
-    car1.y < car2.y + car2.height &&
-    car1.y + car1.height > car2.y
-  ) {
-    handleCollision(car1, car2);
-    return true;
-  }
-  return false;
-}
-
-// Draw finishing line
-function drawFinishLine() {
-  const finishLineX = centerX + 330;
-  ctx.fillStyle = "orange";
-  ctx.fillRect(finishLineX - 50, centerY, 120, 10);
-}
-
-// Main game loop
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+  drawBackground();
   drawTrack();
-  drawFinishLine();
-
-  updateCarControls(cars[0], controls.player1);
-  updateCarControls(cars[1], controls.player2);
-
-  constrainCarToTrack(cars[0]);
-  constrainCarToTrack(cars[1]);
-  checkCollision(cars[0], cars[1]);
-
   drawCar(cars[0], carImages.player1);
   drawCar(cars[1], carImages.player2);
 
   requestAnimationFrame(gameLoop);
 }
 
-// websocket connection ::
-
-// Replace 'room1' with the actual room name dynamically (e.g., input from the user)
-// const roomName = "room1";
-// let socket = new WebSocket(`ws://127.0.0.1:8000/ws/game/${roomName}/`);
-let socket = new WebSocket("ws://127.0.0.1:8000/ws/game/");
-
-socket.onopen = function () {
-  console.log("Connected to WebSocket server");
-};
-
-socket.onmessage = function (e) {
-  console.log("A message has been received from the server!");
-  try {
-    const data = JSON.parse(e.data);
-    console.log("Full data received from the server:", data);
-
-    // Handle different message types (e.g., player join, player move)
-    if (data.type === "player_joined") {
-      console.log("Player joined: " + data.player);
-    } else if (data.type === "player_left") {
-      console.log("Player left: " + data.player);
-    } else if (data.type === "game_event") {
-      // Update car positions and other game state
-      // Assuming data contains car positions for both players
-      cars[0].x = data.player1.x;
-      cars[0].y = data.player1.y;
-      cars[0].angle = data.player1.angle;
-      cars[0].speed = data.player1.speed;
-
-      cars[1].x = data.player2.x;
-      cars[1].y = data.player2.y;
-      cars[1].angle = data.player2.angle;
-      cars[1].speed = data.player2.speed;
-    }
-  } catch (error) {
-    console.error("Error parsing the message from server:", error);
-    console.error("Raw message received:", e.data);
+// Wait for images to load before starting game loop
+let imagesLoaded = 0;
+carImages.player1.onload = carImages.player2.onload = () => {
+  imagesLoaded++;
+  if (imagesLoaded === 2) {
+    gameLoop();
   }
 };
-
-// Handle WebSocket closing
-socket.onclose = function (e) {
-  console.error("WebSocket closed unexpectedly hahahahahaha");
-};
-
-// Send player input data (e.g., control keys) to the server
-window.addEventListener("keydown", (e) => {
-  if (e.key in controls.player1) controls.player1[e.key] = true;
-  if (e.key in controls.player2) controls.player2[e.key] = true;
-
-  // Send updated controls to the server
-  socket.send(
-    JSON.stringify({
-      type: "player_input",
-      player1: controls.player1,
-      player2: controls.player2,
-    })
-  );
-});
-
-window.addEventListener("keyup", (e) => {
-  if (e.key in controls.player1) controls.player1[e.key] = false;
-  if (e.key in controls.player2) controls.player2[e.key] = false;
-
-  // Send updated controls to the server
-  socket.send(
-    JSON.stringify({
-      type: "player_input",
-      player1: controls.player1,
-      player2: controls.player2,
-    })
-  );
-});
