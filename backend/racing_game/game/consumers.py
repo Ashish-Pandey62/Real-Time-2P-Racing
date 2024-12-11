@@ -40,10 +40,17 @@ class GameConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                "type": "player_joined",
+                "type": "notify_player_joined",  # Changed this line
                 "player_id": self.player_id
             }
         )
+
+    # Add this method to handle player joined notification
+    async def notify_player_joined(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "player_joined",
+            "player_id": event['player_id']
+        }))
 
     def get_initial_position(self, player_id):
         # Define initial positions for players
@@ -55,23 +62,32 @@ class GameConsumer(AsyncWebsocketConsumer):
         return track_points[player_id - 1]
 
     async def disconnect(self, close_code):
-        # Remove player from tracking
+        # Check if player_id exists before trying to use it
         if hasattr(self, 'player_id'):
-            del self.players[self.player_id]
+            # Remove player from tracking
+            if self.player_id in self.players:
+                del self.players[self.player_id]
 
-        await self.channel_layer.group_discard(
-            self.room_group_name, 
-            self.channel_name
-        )
+            await self.channel_layer.group_discard(
+                self.room_group_name, 
+                self.channel_name
+            )
 
-        # Notify other players
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "player_left",
-                "player_id": self.player_id
-            }
-        )
+            # Notify other players
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "notify_player_left",  # Changed this line
+                    "player_id": self.player_id
+                }
+            )
+
+    # Add this method to handle player left notification
+    async def notify_player_left(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "player_left",
+            "player_id": event['player_id']
+        }))
 
     async def receive(self, text_data):
         try:
@@ -102,15 +118,16 @@ class GameConsumer(AsyncWebsocketConsumer):
         for player_id, player in self.players.items():
             controls = player['controls']
             
-            # Update speed and angle based on controls
-            if controls['ArrowUp'] or controls['w']:
+            # Safely check controls with .get() method
+            # Use False as default if key doesn't exist
+            if controls.get('ArrowUp', False) or controls.get('w', False):
                 player['speed'] = min(player['speed'] + 0.1, 5)
-            if controls['ArrowDown'] or controls['s']:
+            if controls.get('ArrowDown', False) or controls.get('s', False):
                 player['speed'] = max(player['speed'] - 0.1, -2.5)
             
-            if controls['ArrowLeft'] or controls['a']:
+            if controls.get('ArrowLeft', False) or controls.get('a', False):
                 player['angle'] -= 0.05 * (1 if player['speed'] != 0 else 0)
-            if controls['ArrowRight'] or controls['d']:
+            if controls.get('ArrowRight', False) or controls.get('d', False):
                 player['angle'] += 0.05 * (1 if player['speed'] != 0 else 0)
 
             # Move car
@@ -127,16 +144,4 @@ class GameConsumer(AsyncWebsocketConsumer):
             "type": "game_event",
             "player1": event["player1"],
             "player2": event["player2"],
-        }))
-
-    async def player_joined(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "player_joined",
-            "player_id": event['player_id']
-        }))
-
-    async def player_left(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "player_left",
-            "player_id": event['player_id']
         }))
