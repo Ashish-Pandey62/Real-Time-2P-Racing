@@ -249,24 +249,70 @@ function gameLoop() {
 // let socket = new WebSocket(`ws://127.0.0.1:8000/ws/game/${roomName}/`);
 let socket = new WebSocket("ws://127.0.0.1:8000/ws/game/");
 
+socket.onopen = function () {
+  console.log("Connected to WebSocket server");
+};
+
 socket.onmessage = function (e) {
   console.log("A message has been received from the server!");
-
   try {
-    // Parse the JSON data
     const data = JSON.parse(e.data);
-
-    // Log the entire data object
     console.log("Full data received from the server:", data);
 
-    // Log individual keys and values for better debugging
+    // Handle different message types (e.g., player join, player move)
+    if (data.type === "player_joined") {
+      console.log("Player joined: " + data.player);
+    } else if (data.type === "player_left") {
+      console.log("Player left: " + data.player);
+    } else if (data.type === "game_event") {
+      // Update car positions and other game state
+      // Assuming data contains car positions for both players
+      cars[0].x = data.player1.x;
+      cars[0].y = data.player1.y;
+      cars[0].angle = data.player1.angle;
+      cars[0].speed = data.player1.speed;
 
+      cars[1].x = data.player2.x;
+      cars[1].y = data.player2.y;
+      cars[1].angle = data.player2.angle;
+      cars[1].speed = data.player2.speed;
+    }
   } catch (error) {
     console.error("Error parsing the message from server:", error);
     console.error("Raw message received:", e.data);
   }
 };
 
+// Handle WebSocket closing
 socket.onclose = function (e) {
-  console.error("WebSocket closed unexpectedly");
+  console.error("WebSocket closed unexpectedly hahahahahaha");
 };
+
+// Send player input data (e.g., control keys) to the server
+window.addEventListener("keydown", (e) => {
+  if (e.key in controls.player1) controls.player1[e.key] = true;
+  if (e.key in controls.player2) controls.player2[e.key] = true;
+
+  // Send updated controls to the server
+  socket.send(
+    JSON.stringify({
+      type: "player_input",
+      player1: controls.player1,
+      player2: controls.player2,
+    })
+  );
+});
+
+window.addEventListener("keyup", (e) => {
+  if (e.key in controls.player1) controls.player1[e.key] = false;
+  if (e.key in controls.player2) controls.player2[e.key] = false;
+
+  // Send updated controls to the server
+  socket.send(
+    JSON.stringify({
+      type: "player_input",
+      player1: controls.player1,
+      player2: controls.player2,
+    })
+  );
+});
