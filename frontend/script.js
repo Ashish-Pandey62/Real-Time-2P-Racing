@@ -241,3 +241,32 @@ function gameLoop() {
 
   requestAnimationFrame(gameLoop);
 }
+
+// websocket connection ::
+
+// Replace 'room1' with the actual room name dynamically (e.g., input from the user)
+// const roomName = "room1";
+// let socket = new WebSocket(`ws://127.0.0.1:8000/ws/game/${roomName}/`);
+let socket = new WebSocket("ws://127.0.0.1:8000/ws/game/");
+
+socket.onmessage = function (e) {
+  console.log("A message has been received from the server!");
+
+  try {
+    // Parse the JSON data
+    const data = JSON.parse(e.data);
+
+    // Log the entire data object
+    console.log("Full data received from the server:", data);
+
+    // Log individual keys and values for better debugging
+
+  } catch (error) {
+    console.error("Error parsing the message from server:", error);
+    console.error("Raw message received:", e.data);
+  }
+};
+
+socket.onclose = function (e) {
+  console.error("WebSocket closed unexpectedly");
+};
