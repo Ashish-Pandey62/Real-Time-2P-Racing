@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "game",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
@@ -39,6 +40,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+MIDDLEWARE.insert(1, "corsheaders.middleware.CorsMiddleware")
+
 
 ROOT_URLCONF = "racing_game.urls"
 
@@ -59,7 +62,7 @@ TEMPLATES = [
 ]
 
 # WSGI_APPLICATION = "racing_game.wsgi.application"
-AWSGI_APPLICATION = "racing_game.asgi.application"
+ASGI_APPLICATION = "racing_game.asgi.application"
 
 
 # Database
@@ -116,13 +119,25 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # settings.py
 
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379/')],
+#         },
+#     },
+# }
+
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379/')],
-        },
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
 
+
+
+
 ALLOWED_HOSTS = ["*"] 
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8001",  # Frontend server URL
+]
