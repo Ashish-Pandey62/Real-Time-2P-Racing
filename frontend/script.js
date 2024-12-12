@@ -1,3 +1,43 @@
+// const winnerOverlay = document.createElement("div");
+// winnerOverlay.id = "winner-overlay";
+// winnerOverlay.style.cssText = `
+//     display: none;
+//     position: fixed;
+//     top: 0;
+//     left: 0;
+//     width: 100%;
+//     height: 100%;
+//     background: rgba(0, 0, 0, 0.7);
+//     z-index: 1000;
+//     justify-content: center;
+//     align-items: center;
+// `;
+
+// const winnerModal = document.createElement("div");
+// winnerModal.style.cssText = `
+//     background: white;
+//     padding: 40px;
+//     border-radius: 15px;
+//     text-align: center;
+//     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+// `;
+
+// document.body.appendChild(winnerOverlay);
+// winnerOverlay.appendChild(winnerModal);
+
+// function showWinnerModal(winnerId) {
+//   winnerModal.innerHTML = `
+//         <h1>🏆 Player ${winnerId} Wins! 🏆</h1>
+//         <p>Congratulations on completing the race!</p>
+//         <button onclick="restartGame()">Play Again</button>
+//     `;
+//   winnerOverlay.style.display = "flex";
+// }
+
+function restartGame() {
+  location.reload();
+}
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -6,19 +46,6 @@ canvas.height = 800;
 
 const centerX = canvas.width / 2;
 const centerY = canvas.height / 2;
-
-// Load the background image
-const backgroundImage = new Image();
-backgroundImage.src = "car1.png";
-
-backgroundImage.onload = function () {
-  gameLoop(); // Start the game loop once the image has loaded
-};
-
-function drawBackground() {
-  // Draw the background image covering the whole canvas
-  ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-}
 
 // Track Points
 const trackPoints = [
@@ -31,7 +58,7 @@ const trackPoints = [
 ];
 
 const outerTrackRadius = 400;
-const innerTrackRadius = 280;
+const innerTrackRadius = 250;
 
 const carImages = {
   player1: new Image(),
@@ -43,8 +70,8 @@ carImages.player2.src = "car2.png";
 
 const cars = [
   {
-    x: centerX - 200,
-    y: centerY - 300,
+    x: centerX - 8,
+    y: centerY - 280,
     width: 60,
     height: 30,
     angle: 0,
@@ -53,8 +80,8 @@ const cars = [
     color: "#e74c3c",
   },
   {
-    x: centerX + 250,
-    y: centerY - 250,
+    x: centerX - 8,
+    y: centerY - 340,
     width: 60,
     height: 30,
     angle: 0,
@@ -97,7 +124,7 @@ socket.onmessage = function (e) {
       localPlayerId = data.player_id;
       console.log("You are player", localPlayerId);
     } else if (data.type === "game_event") {
-      // Update cars based on server data
+      // Fully update cars based on server data
       if (data.player1) {
         cars[0].x = data.player1.x;
         cars[0].y = data.player1.y;
@@ -109,6 +136,18 @@ socket.onmessage = function (e) {
         cars[1].y = data.player2.y;
         cars[1].angle = data.player2.angle;
         cars[1].speed = data.player2.speed;
+      }
+
+      // if (data.game_finished && data.winner) {
+      //   showWinnerModal(data.winner);
+      // }
+
+      if (checkTrackCollision(cars[0]) || checkTrackCollision(cars[1])) {
+        console.log("Track boundary detected by server");
+      }
+
+      if (checkCarCollision(cars[0], cars[1])) {
+        console.log("Car collision detected by server");
       }
     }
   } catch (error) {
@@ -148,6 +187,36 @@ window.addEventListener("keyup", (e) => {
     })
   );
 });
+
+// Collision Detection partttt
+function checkTrackCollision(car) {
+  // Calculate distance from car's center to track center
+  const dx = car.x - centerX;
+  const dy = car.y - centerY;
+  const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+  // Calculate car's diagonal for more accurate collision
+  const carDiagonal =
+    Math.sqrt((car.width / 2) ** 2 + (car.height / 2) ** 2) - 60;
+
+  // Check if car is outside outer track or inside inner track
+  return (
+    distanceFromCenter + carDiagonal > outerTrackRadius ||
+    distanceFromCenter - carDiagonal < innerTrackRadius
+  );
+}
+
+function checkCarCollision(car1, car2) {
+  // Calculate distance between car centers
+  const dx = car1.x - car2.x;
+  const dy = car1.y - car2.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // Collision threshold
+  const collisionThreshold = (car1.width + car2.width) / 2 - 20;
+
+  return distance < collisionThreshold;
+}
 
 // Game rendering and loop
 function drawTrack() {
@@ -200,17 +269,37 @@ function drawCar(car, carImage) {
   ctx.restore();
 }
 
+function drawFinishLine() {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY - 250); // Start of the line
+  ctx.lineTo(centerX, centerY - 390);
+  ctx.strokeStyle = "orange";
+  ctx.lineWidth = 10;
+  ctx.stroke();
+  ctx.restore();
+}
+
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBackground();
+
   drawTrack();
+  drawFinishLine();
   drawCar(cars[0], carImages.player1);
   drawCar(cars[1], carImages.player2);
+
+  if (checkTrackCollision(cars[0]) || checkTrackCollision(cars[1])) {
+    console.log("Track collision detected!");
+  }
+
+  if (checkCarCollision(cars[0], cars[1])) {
+    console.log("Car collision detected!");
+  }
 
   requestAnimationFrame(gameLoop);
 }
 
-// Wait for images to load before starting game loop
+// Wait for images to load before starting game loop, yes this is a hack haha
 let imagesLoaded = 0;
 carImages.player1.onload = carImages.player2.onload = () => {
   imagesLoaded++;
