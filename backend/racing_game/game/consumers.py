@@ -94,7 +94,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
-                    "type": "notify_player_left",  # Changed this line
+                    "type": "notify_player_left",  
                     "player_id": self.player_id
                 }
             )
@@ -144,13 +144,13 @@ class GameConsumer(AsyncWebsocketConsumer):
     
     def check_lap_completion(self, player_id, player):
    
-        # Define lap completion zones based on track points
+        
         lap_completion_zones = [
             {'x': self.CENTER_X - 200, 'y': self.CENTER_Y - 300},
             {'x': self.CENTER_X + 250, 'y': self.CENTER_Y - 250}
         ]
 
-        # Check proximity to lap completion zone
+        
         for zone in lap_completion_zones:
             dx = player['x'] - zone['x']
             dy = player['y'] - zone['y']
@@ -175,7 +175,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             
             controls = player['controls']
             
-            # Acceleration and deceleration
+            
             if controls.get('ArrowUp', False) or controls.get('w', False):
                 player['speed'] = min(player['speed'] + 0.1, player['maxSpeed'])
             if controls.get('ArrowDown', False) or controls.get('s', False):
@@ -187,22 +187,22 @@ class GameConsumer(AsyncWebsocketConsumer):
             if controls.get('ArrowRight', False) or controls.get('d', False):
                 player['angle'] += 0.05 * (1 if player['speed'] != 0 else 0)
 
-            # Move car
+            
             new_x = player['x'] + math.cos(player['angle']) * player['speed']
             new_y = player['y'] + math.sin(player['angle']) * player['speed']
             
-            # Track Collision Detection
+            
             track_collision = self.check_track_collision({'x': new_x, 'y': new_y, 'width': player['width'], 'height': player['height']})
             
             if not track_collision:
                 player['x'] = new_x
                 player['y'] = new_y
             else:
-                # More realistic track collision response
+                
                 player['speed'] *= -0.3  
             
-            # Car Collision Detection
-            other_player_id = 3 - player_id  # Switch between 1 and 2
+            
+            other_player_id = 3 - player_id  
             if other_player_id in self.players:
                 other_player = self.players[other_player_id]
                 
@@ -223,19 +223,19 @@ class GameConsumer(AsyncWebsocketConsumer):
                     player['speed'] = other_player['speed'] * 0.5
                     other_player['speed'] = temp_speed * 0.5
                     
-                    # Swap positions slightly
+                    
                     player['x'] += math.cos(player['angle']) * 10
                     player['y'] += math.sin(player['angle']) * 10
                     other_player['x'] -= math.cos(other_player['angle']) * 10
                     other_player['y'] -= math.sin(other_player['angle']) * 10
             
-            # Lap completion check
+           
             self.check_lap_completion(player_id, player)
             
             # Friction
             player['speed'] *= 0.98
 
-        # Check if game is finished
+        
         if self.game_finished:
             await self.channel_layer.group_send(
                 self.room_group_name,
@@ -251,9 +251,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         return self.players
     
     def check_track_collision(self, player):
-        """
-        More precise track collision detection     
-        """
         dx = player['x'] - self.CENTER_X
         dy = player['y'] - self.CENTER_Y
         distance_from_center = math.sqrt(dx**2 + dy**2)
@@ -270,7 +267,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         dy = player1['y'] - player2['y']
         distance = math.sqrt(dx**2 + dy**2)
         
-        # Adjusted collision threshold considering car dimensions
+        
         collision_threshold = (
             (player1['width'] + player2['width']) / 2 + 
             (player1['height'] + player2['height']) / 2

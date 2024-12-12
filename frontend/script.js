@@ -1,3 +1,37 @@
+function restartGame() {
+  location.reload();
+}
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = 800;
+canvas.height = 800;
+
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+
+// Track Points
+const trackPoints = [
+  { x: centerX - 200, y: centerY - 300 },
+  { x: centerX + 250, y: centerY - 250 },
+  { x: centerX + 350, y: centerY },
+  { x: centerX + 200, y: centerY + 250 },
+  { x: centerX - 150, y: centerY + 300 },
+  { x: centerX - 350, y: centerY + 100 },
+];
+
+const outerTrackRadius = 400;
+const innerTrackRadius = 250;
+
+const carImages = {
+  player1: new Image(),
+  player2: new Image(),
+};
+
+carImages.player1.src = "car1.png";
+carImages.player2.src = "car2.png";
+
 // const winnerOverlay = document.createElement("div");
 // winnerOverlay.id = "winner-overlay";
 // winnerOverlay.style.cssText = `
@@ -33,40 +67,6 @@
 //     `;
 //   winnerOverlay.style.display = "flex";
 // }
-
-function restartGame() {
-  location.reload();
-}
-
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-canvas.width = 800;
-canvas.height = 800;
-
-const centerX = canvas.width / 2;
-const centerY = canvas.height / 2;
-
-// Track Points
-const trackPoints = [
-  { x: centerX - 200, y: centerY - 300 },
-  { x: centerX + 250, y: centerY - 250 },
-  { x: centerX + 350, y: centerY },
-  { x: centerX + 200, y: centerY + 250 },
-  { x: centerX - 150, y: centerY + 300 },
-  { x: centerX - 350, y: centerY + 100 },
-];
-
-const outerTrackRadius = 400;
-const innerTrackRadius = 250;
-
-const carImages = {
-  player1: new Image(),
-  player2: new Image(),
-};
-
-carImages.player1.src = "car1.png";
-carImages.player2.src = "car2.png";
 
 const cars = [
   {
@@ -164,7 +164,6 @@ window.addEventListener("keydown", (e) => {
   if (e.key in controls.player1) controls.player1[e.key] = true;
   if (e.key in controls.player2) controls.player2[e.key] = true;
 
-  // Send input to server
   socket.send(
     JSON.stringify({
       type: "player_input",
@@ -178,7 +177,6 @@ window.addEventListener("keyup", (e) => {
   if (e.key in controls.player1) controls.player1[e.key] = false;
   if (e.key in controls.player2) controls.player2[e.key] = false;
 
-  // Send input to server
   socket.send(
     JSON.stringify({
       type: "player_input",
@@ -190,16 +188,13 @@ window.addEventListener("keyup", (e) => {
 
 // Collision Detection partttt
 function checkTrackCollision(car) {
-  // Calculate distance from car's center to track center
   const dx = car.x - centerX;
   const dy = car.y - centerY;
   const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
 
-  // Calculate car's diagonal for more accurate collision
   const carDiagonal =
     Math.sqrt((car.width / 2) ** 2 + (car.height / 2) ** 2) - 60;
 
-  // Check if car is outside outer track or inside inner track
   return (
     distanceFromCenter + carDiagonal > outerTrackRadius ||
     distanceFromCenter - carDiagonal < innerTrackRadius
@@ -272,7 +267,7 @@ function drawCar(car, carImage) {
 function drawFinishLine() {
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(centerX, centerY - 250); // Start of the line
+  ctx.moveTo(centerX, centerY - 250);
   ctx.lineTo(centerX, centerY - 390);
   ctx.strokeStyle = "orange";
   ctx.lineWidth = 10;
