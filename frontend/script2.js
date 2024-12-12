@@ -84,7 +84,7 @@ socket.onmessage = function (e) {
       localPlayerId = data.player_id;
       console.log("You are player", localPlayerId);
     } else if (data.type === "game_event") {
-      // Update cars based on server data
+      // Fully update cars based on server data
       if (data.player1) {
         cars[0].x = data.player1.x;
         cars[0].y = data.player1.y;
@@ -96,6 +96,15 @@ socket.onmessage = function (e) {
         cars[1].y = data.player2.y;
         cars[1].angle = data.player2.angle;
         cars[1].speed = data.player2.speed;
+      }
+
+      // Optional: Trigger local collision checks
+      if (checkTrackCollision(cars[0]) || checkTrackCollision(cars[1])) {
+        console.log("Track boundary detected by server");
+      }
+
+      if (checkCarCollision(cars[0], cars[1])) {
+        console.log("Car collision detected by server");
       }
     }
   } catch (error) {
@@ -135,6 +144,35 @@ window.addEventListener("keyup", (e) => {
     })
   );
 });
+
+// Collision Detection Functions
+function checkTrackCollision(car) {
+  // Calculate distance from car's center to track center
+  const dx = car.x - centerX;
+  const dy = car.y - centerY;
+  const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+  // Calculate car's diagonal for more accurate collision
+  const carDiagonal = Math.sqrt((car.width / 2) ** 2 + (car.height / 2) ** 2);
+
+  // Check if car is outside outer track or inside inner track
+  return (
+    distanceFromCenter + carDiagonal > outerTrackRadius ||
+    distanceFromCenter - carDiagonal < innerTrackRadius
+  );
+}
+
+function checkCarCollision(car1, car2) {
+  // Calculate distance between car centers
+  const dx = car1.x - car2.x;
+  const dy = car1.y - car2.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // Collision threshold (sum of half-widths)
+  const collisionThreshold = (car1.width + car2.width) / 2;
+
+  return distance < collisionThreshold;
+}
 
 // Game rendering and loop
 function drawTrack() {
@@ -193,6 +231,15 @@ function gameLoop() {
   drawTrack();
   drawCar(cars[0], carImages.player1);
   drawCar(cars[1], carImages.player2);
+
+  // Local collision checks (for immediate feedback)
+  if (checkTrackCollision(cars[0]) || checkTrackCollision(cars[1])) {
+    console.log("Track collision detected!");
+  }
+
+  if (checkCarCollision(cars[0], cars[1])) {
+    console.log("Car collision detected!");
+  }
 
   requestAnimationFrame(gameLoop);
 }
