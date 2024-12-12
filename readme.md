@@ -1,6 +1,6 @@
 # 2P Car Racing Game
 
-A real-time multiplayer car racing game which allows two players to compete in a race on a dynamic track, complete with lap tracking, collision detection, and car physics.
+A real-time 2P car racing game which allows two players to compete in a race on a dynamic track, complete with lap tracking, collision detection, and car physics.
 
 ## Features
 
