@@ -5,8 +5,15 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 
 class GameConsumer(AsyncWebsocketConsumer):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.player_laps = {1: 0, 2: 0}
+        self.game_finished = False
+        # self.winner = None
    
     players = {}
+    
     
    
     CENTER_X = 400
@@ -107,15 +114,15 @@ class GameConsumer(AsyncWebsocketConsumer):
                 self.players[self.player_id]['controls'] = data.get(f'player{self.player_id}', {})
 
                 
-                updated_players = self.update_game_state()
+                updated_players = await self.update_game_state()
 
                 # Broadcast updated game state
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         "type": "send_game_event",
-                        "player1": updated_players.get(1, {}),
-                        "player2": updated_players.get(2, {})
+                        "player1": updated_players.get(1, None),
+                        "player2": updated_players.get(2, None)
                     }
                 )
 
@@ -125,11 +132,42 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def send_game_event(self, event):
         await self.send(text_data=json.dumps({
             "type": "game_event",
+            "game_finished": event.get("game_finished", False),
+            # "winner": event.get("winner", None),
             "player1": event.get("player1", {}),
             "player2": event.get("player2", {})
         }))
+        
+        
+    LAPS_TO_WIN = 3
+    
+    
+    def check_lap_completion(self, player_id, player):
+   
+        # Define lap completion zones based on track points
+        lap_completion_zones = [
+            {'x': self.CENTER_X - 200, 'y': self.CENTER_Y - 300},
+            {'x': self.CENTER_X + 250, 'y': self.CENTER_Y - 250}
+        ]
 
-    def update_game_state(self):
+        # Check proximity to lap completion zone
+        for zone in lap_completion_zones:
+            dx = player['x'] - zone['x']
+            dy = player['y'] - zone['y']
+            distance = math.sqrt(dx**2 + dy**2)
+            
+            if distance < 50:  # Adjust threshold as needed
+                self.player_laps[player_id] += 1
+                
+                # Check if player has won
+                if self.player_laps[player_id] >= self.LAPS_TO_WIN:
+                    self.game_finished = True
+                    # self.winner = player_id
+                    return True
+    
+        return False
+
+    async def update_game_state(self):
         for player_id, player in self.players.items():
             original_x = player['x']
             original_y = player['y']
@@ -162,7 +200,6 @@ class GameConsumer(AsyncWebsocketConsumer):
             else:
                 # More realistic track collision response
                 player['speed'] *= -0.3  
-                
             
             # Car Collision Detection
             other_player_id = 3 - player_id  # Switch between 1 and 2
@@ -182,7 +219,6 @@ class GameConsumer(AsyncWebsocketConsumer):
                 })
                 
                 if car_collision:
-                    
                     temp_speed = player['speed']
                     player['speed'] = other_player['speed'] * 0.5
                     other_player['speed'] = temp_speed * 0.5
@@ -193,15 +229,30 @@ class GameConsumer(AsyncWebsocketConsumer):
                     other_player['x'] -= math.cos(other_player['angle']) * 10
                     other_player['y'] -= math.sin(other_player['angle']) * 10
             
+            # Lap completion check
+            self.check_lap_completion(player_id, player)
+            
             # Friction
             player['speed'] *= 0.98
 
-        return self.players
+        # Check if game is finished
+        if self.game_finished:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "send_game_event",
+                    "game_finished": True,
+                    # "winner": self.winner,
+                    "player1": self.players.get(1, {}),
+                    "player2": self.players.get(2, {})
+                }
+            )
 
-      
+        return self.players
+    
     def check_track_collision(self, player):
         """
-        More precise track collision detection
+        More precise track collision detection     
         """
         dx = player['x'] - self.CENTER_X
         dy = player['y'] - self.CENTER_Y
@@ -226,3 +277,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         ) * 0.5
         
         return distance < collision_threshold
+    
+    
+    

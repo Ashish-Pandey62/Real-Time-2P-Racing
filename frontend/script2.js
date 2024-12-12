@@ -1,3 +1,43 @@
+// const winnerOverlay = document.createElement("div");
+// winnerOverlay.id = "winner-overlay";
+// winnerOverlay.style.cssText = `
+//     display: none;
+//     position: fixed;
+//     top: 0;
+//     left: 0;
+//     width: 100%;
+//     height: 100%;
+//     background: rgba(0, 0, 0, 0.7);
+//     z-index: 1000;
+//     justify-content: center;
+//     align-items: center;
+// `;
+
+// const winnerModal = document.createElement("div");
+// winnerModal.style.cssText = `
+//     background: white;
+//     padding: 40px;
+//     border-radius: 15px;
+//     text-align: center;
+//     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+// `;
+
+// document.body.appendChild(winnerOverlay);
+// winnerOverlay.appendChild(winnerModal);
+
+// function showWinnerModal(winnerId) {
+//   winnerModal.innerHTML = `
+//         <h1>🏆 Player ${winnerId} Wins! 🏆</h1>
+//         <p>Congratulations on completing the race!</p>
+//         <button onclick="restartGame()">Play Again</button>
+//     `;
+//   winnerOverlay.style.display = "flex";
+// }
+
+function restartGame() {
+  location.reload();
+}
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -30,8 +70,8 @@ carImages.player2.src = "car2.png";
 
 const cars = [
   {
-    x: centerX - 10,
-    y: centerY - 300,
+    x: centerX - 8,
+    y: centerY - 280,
     width: 60,
     height: 30,
     angle: 0,
@@ -40,8 +80,8 @@ const cars = [
     color: "#e74c3c",
   },
   {
-    x: centerX + 250,
-    y: centerY - 250,
+    x: centerX - 8,
+    y: centerY - 340,
     width: 60,
     height: 30,
     angle: 0,
@@ -98,6 +138,10 @@ socket.onmessage = function (e) {
         cars[1].speed = data.player2.speed;
       }
 
+      // if (data.game_finished && data.winner) {
+      //   showWinnerModal(data.winner);
+      // }
+
       if (checkTrackCollision(cars[0]) || checkTrackCollision(cars[1])) {
         console.log("Track boundary detected by server");
       }
@@ -152,7 +196,8 @@ function checkTrackCollision(car) {
   const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
 
   // Calculate car's diagonal for more accurate collision
-  const carDiagonal = Math.sqrt((car.width / 2) ** 2 + (car.height / 2) ** 2);
+  const carDiagonal =
+    Math.sqrt((car.width / 2) ** 2 + (car.height / 2) ** 2) - 60;
 
   // Check if car is outside outer track or inside inner track
   return (
@@ -168,7 +213,7 @@ function checkCarCollision(car1, car2) {
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   // Collision threshold
-  const collisionThreshold = (car1.width + car2.width) / 2;
+  const collisionThreshold = (car1.width + car2.width) / 2 - 20;
 
   return distance < collisionThreshold;
 }
@@ -224,10 +269,22 @@ function drawCar(car, carImage) {
   ctx.restore();
 }
 
+function drawFinishLine() {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY - 250); // Start of the line
+  ctx.lineTo(centerX, centerY - 390);
+  ctx.strokeStyle = "orange";
+  ctx.lineWidth = 10;
+  ctx.stroke();
+  ctx.restore();
+}
+
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawTrack();
+  drawFinishLine();
   drawCar(cars[0], carImages.player1);
   drawCar(cars[1], carImages.player2);
 
