@@ -5,10 +5,10 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 
 class GameConsumer(AsyncWebsocketConsumer):
-    # Class-level dictionary to track player states
+   
     players = {}
     
-    # Track configuration (matching frontend)
+   
     CENTER_X = 400
     CENTER_Y = 400
     OUTER_TRACK_RADIUS = 400
@@ -17,12 +17,12 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_group_name = "racing_game_room"
 
-        # Limit to 2 players
+        # 2 players race onlyy
         if len(self.channel_layer.groups.get(self.room_group_name, [])) >= 2:
             await self.close()
             return
 
-        # Assign a unique player ID
+    #    player id
         self.player_id = len(self.players) + 1
 
         # Initial player state
@@ -55,7 +55,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             }
         )
 
-    # Add this method to handle player joined notification
+    # 
     async def notify_player_joined(self, event):
         await self.send(text_data=json.dumps({
             "type": "player_joined",
@@ -63,7 +63,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         }))
 
     def get_initial_position(self, player_id):
-        # Define initial positions for players
+        
         center_x, center_y = 400, 400
         track_points = [
             {'x': center_x - 200, 'y': center_y - 300},
@@ -72,7 +72,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         return track_points[player_id - 1]
 
     async def disconnect(self, close_code):
-        # Check if player_id exists before trying to use it
+       
         if hasattr(self, 'player_id'):
             # Remove player from tracking
             if self.player_id in self.players:
@@ -83,7 +83,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 self.channel_name
             )
 
-            # Notify other players
+          
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -92,7 +92,6 @@ class GameConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-    # Add this method to handle player left notification
     async def notify_player_left(self, event):
         await self.send(text_data=json.dumps({
             "type": "player_left",
@@ -104,10 +103,10 @@ class GameConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
 
             if data["type"] == "player_input" and hasattr(self, 'player_id'):
-                # Update player controls
+               
                 self.players[self.player_id]['controls'] = data.get(f'player{self.player_id}', {})
 
-                # Simulate game state update
+                
                 updated_players = self.update_game_state()
 
                 # Broadcast updated game state
@@ -162,8 +161,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 player['y'] = new_y
             else:
                 # More realistic track collision response
-                player['speed'] *= -0.3  # Bounce back with reduced speed
-                # player['angle'] += math.pi  # Reverse direction
+                player['speed'] *= -0.3  
+                
             
             # Car Collision Detection
             other_player_id = 3 - player_id  # Switch between 1 and 2
@@ -183,7 +182,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 })
                 
                 if car_collision:
-                    # More dynamic car collision response
+                    
                     temp_speed = player['speed']
                     player['speed'] = other_player['speed'] * 0.5
                     other_player['speed'] = temp_speed * 0.5
@@ -194,7 +193,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                     other_player['x'] -= math.cos(other_player['angle']) * 10
                     other_player['y'] -= math.sin(other_player['angle']) * 10
             
-            # Gradual deceleration
+            # Friction
             player['speed'] *= 0.98
 
         return self.players

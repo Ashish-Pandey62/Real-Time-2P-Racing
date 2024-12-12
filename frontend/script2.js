@@ -98,7 +98,6 @@ socket.onmessage = function (e) {
         cars[1].speed = data.player2.speed;
       }
 
-      // Optional: Trigger local collision checks
       if (checkTrackCollision(cars[0]) || checkTrackCollision(cars[1])) {
         console.log("Track boundary detected by server");
       }
@@ -145,7 +144,7 @@ window.addEventListener("keyup", (e) => {
   );
 });
 
-// Collision Detection Functions
+// Collision Detection partttt
 function checkTrackCollision(car) {
   // Calculate distance from car's center to track center
   const dx = car.x - centerX;
@@ -168,7 +167,7 @@ function checkCarCollision(car1, car2) {
   const dy = car1.y - car2.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
 
-  // Collision threshold (sum of half-widths)
+  // Collision threshold
   const collisionThreshold = (car1.width + car2.width) / 2;
 
   return distance < collisionThreshold;
@@ -232,7 +231,6 @@ function gameLoop() {
   drawCar(cars[0], carImages.player1);
   drawCar(cars[1], carImages.player2);
 
-  // Local collision checks (for immediate feedback)
   if (checkTrackCollision(cars[0]) || checkTrackCollision(cars[1])) {
     console.log("Track collision detected!");
   }
@@ -244,7 +242,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// Wait for images to load before starting game loop
+// Wait for images to load before starting game loop, yes this is a hack haha
 let imagesLoaded = 0;
 carImages.player1.onload = carImages.player2.onload = () => {
   imagesLoaded++;
