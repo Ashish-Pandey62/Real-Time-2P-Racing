@@ -18,7 +18,7 @@ const trackPoints = [
 ];
 
 const outerTrackRadius = 400;
-const innerTrackRadius = 280;
+const innerTrackRadius = 250;
 
 const carImages = {
   player1: new Image(),
@@ -30,7 +30,7 @@ carImages.player2.src = "car2.png";
 
 const cars = [
   {
-    x: centerX - 200,
+    x: centerX - 10,
     y: centerY - 300,
     width: 60,
     height: 30,
